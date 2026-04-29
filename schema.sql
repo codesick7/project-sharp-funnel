@@ -36,7 +36,8 @@ CREATE TABLE datasources (
     description      TEXT,
     provider         TEXT,                           -- e.g. "NCUA", "FDIC", "SEC"
     url              TEXT,                           -- link to source
-    created_at       TIMESTAMPTZ DEFAULT NOW()
+    created_at       TIMESTAMPTZ DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
 
@@ -54,7 +55,6 @@ CREATE TABLE features (
     description      TEXT,
     data_type        feature_data_type NOT NULL,
     unit_of_measure  TEXT,                           -- e.g. "USD", "count", "percent"
-    category         TEXT,                           -- grouping label, e.g. "deposits", "loans"
     datasource_id    INTEGER NOT NULL REFERENCES datasources(id),
     update_frequency TEXT,                            -- how often this feature gets new values
     mapping_metadata JSONB        DEFAULT '{}',     -- source field name, transformations, notes
@@ -62,7 +62,6 @@ CREATE TABLE features (
     updated_at       TIMESTAMPTZ  DEFAULT NOW()
 );
 
-CREATE INDEX idx_features_category    ON features (category);
 CREATE INDEX idx_features_datasource  ON features (datasource_id);
 
 

@@ -105,6 +105,56 @@ CREATE INDEX idx_fv_company_feature_time
     WHERE is_current = TRUE;
 
 
+-- -----------------------------
+-- Snapshots
+-- -----------------------------
+-- A manually triggered point-in-time capture of aggregate statistics.
+-- Each snapshot computes aggregates for all numeric features across all report_dates.
+
+CREATE TABLE snapshots (
+    id          SERIAL PRIMARY KEY,
+    description TEXT,
+    metadata    JSONB        DEFAULT '{}',
+    created_at  TIMESTAMPTZ  DEFAULT NOW()
+);
+
+
+-- -----------------------------
+-- Snapshot aggregates
+-- -----------------------------
+-- Precomputed statistics per (feature, report_date) within a snapshot.
+-- Only numeric features (int, float, bool) are aggregated.
+--
+-- NOTE: text features are excluded from aggregates. When a common strategy
+-- for text/enum aggregation is defined (e.g., value counts, mode), this
+-- can be extended with a separate table or additional columns.
+
+CREATE TABLE snapshot_aggregates (
+    id              BIGSERIAL PRIMARY KEY,
+    snapshot_id     INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+    feature_id      INTEGER NOT NULL REFERENCES features(id),
+    report_date     DATE    NOT NULL,
+    company_count   INTEGER,                    -- number of companies with a value
+    min_val         DOUBLE PRECISION,
+    max_val         DOUBLE PRECISION,
+    avg_val         DOUBLE PRECISION,
+    p10             DOUBLE PRECISION,
+    p20             DOUBLE PRECISION,
+    p25             DOUBLE PRECISION,
+    p30             DOUBLE PRECISION,
+    p40             DOUBLE PRECISION,
+    p50             DOUBLE PRECISION,           -- median
+    p60             DOUBLE PRECISION,
+    p70             DOUBLE PRECISION,
+    p75             DOUBLE PRECISION,
+    p80             DOUBLE PRECISION,
+    p90             DOUBLE PRECISION,
+    UNIQUE (snapshot_id, feature_id, report_date)
+);
+
+CREATE INDEX idx_sa_feature    ON snapshot_aggregates (feature_id, report_date);
+
+
 -- ============================================================
 -- Example queries
 -- ============================================================
@@ -136,7 +186,41 @@ CREATE INDEX idx_fv_company_feature_time
 -- LIMIT  20;
 
 
--- 2. Top companies where feature Y is between $2B and $5B
+-- 2. Populate snapshot_aggregates for a given snapshot
+--    (only numeric features: int, float, bool)
+--
+-- INSERT INTO snapshot_aggregates (
+--     snapshot_id, feature_id, report_date, company_count,
+--     min_val, max_val, avg_val,
+--     p10, p20, p25, p30, p40, p50, p60, p70, p75, p80, p90
+-- )
+-- SELECT
+--     :snapshot_id,
+--     fv.feature_id,
+--     fv.report_date,
+--     count(*)                                                     AS company_count,
+--     min(fv.value)                                                AS min_val,
+--     max(fv.value)                                                AS max_val,
+--     avg(fv.value)                                                AS avg_val,
+--     percentile_cont(0.10) WITHIN GROUP (ORDER BY fv.value)       AS p10,
+--     percentile_cont(0.20) WITHIN GROUP (ORDER BY fv.value)       AS p20,
+--     percentile_cont(0.25) WITHIN GROUP (ORDER BY fv.value)       AS p25,
+--     percentile_cont(0.30) WITHIN GROUP (ORDER BY fv.value)       AS p30,
+--     percentile_cont(0.40) WITHIN GROUP (ORDER BY fv.value)       AS p40,
+--     percentile_cont(0.50) WITHIN GROUP (ORDER BY fv.value)       AS p50,
+--     percentile_cont(0.60) WITHIN GROUP (ORDER BY fv.value)       AS p60,
+--     percentile_cont(0.70) WITHIN GROUP (ORDER BY fv.value)       AS p70,
+--     percentile_cont(0.75) WITHIN GROUP (ORDER BY fv.value)       AS p75,
+--     percentile_cont(0.80) WITHIN GROUP (ORDER BY fv.value)       AS p80,
+--     percentile_cont(0.90) WITHIN GROUP (ORDER BY fv.value)       AS p90
+-- FROM   feature_values fv
+-- JOIN   features f ON f.id = fv.feature_id
+-- WHERE  fv.is_current = TRUE
+--   AND  f.data_type IN ('int', 'float', 'bool')
+-- GROUP  BY fv.feature_id, fv.report_date;
+
+
+-- 3. Top companies where feature Y is between $2B and $5B
 --
 -- SELECT c.name, fv.value, fv.report_date
 -- FROM   feature_values fv

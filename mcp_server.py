@@ -158,4 +158,7 @@ def upload_to_crm(company_names: list[str], deal_context: str) -> str:
 
 
 if __name__ == "__main__":
-    app.run(transport="sse", host="0.0.0.0", port=6726)
+    import uvicorn
+
+    sse_app = app.sse_app()
+    uvicorn.run(sse_app, host="0.0.0.0", port=6726)

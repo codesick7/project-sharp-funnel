@@ -7,11 +7,12 @@ POSTGREST_URL = "http://host.wordguess.lol:3000"
 app = FastMCP("funnel")
 
 @app.tool()
-def get_features(after_id: int = 0, limit: int = 500) -> str:
+def get_features(after_id: int = 0, limit: int = 500
+) -> str:
     """
     Get a paginated list of features.
     after_id: ID of the last fetched feature (0 for the first page)
-    limit: number of features per page (default 20)
+    limit: number of features per page (default 500)
     """
     with httpx.Client() as client:
         params = f"?id=gt.{after_id}&order=id.asc&limit={limit}"
@@ -26,12 +27,12 @@ def get_features(after_id: int = 0, limit: int = 500) -> str:
 @app.tool()
 def get_aggregates(
     after_id: int = 0,
-    limit: int = 100,
+    limit: int = 500,
 ) -> str:
     """
     Get paginated snapshot aggregates (stats per feature per report date).
     after_id: ID of the last fetched row (0 for the first page)
-    limit: number of rows per page (default 100)
+    limit: number of rows per page (default 500)
     """
     with httpx.Client() as client:
         params = (
@@ -59,7 +60,7 @@ def prepare_query(feature_ids: list[int], filters: dict) -> str:
     filters: e.g. {"min_value": 1000000, "limit": 20}
     """
     min_val = filters.get("min_value", 0)
-    limit = filters.get("limit", 20)
+    limit = filters.get("limit", 200)
     ids_str = ",".join(str(i) for i in feature_ids)
 
     sql = f"""

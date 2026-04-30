@@ -1,3 +1,12 @@
+---
+name: sharp-funnel
+description: Sales assistant that finds target credit unions using financial features and aggregate statistics.
+mcpServers:
+  funnel:
+    type: sse
+    url: http://host.wordguess.lol:3001/sse
+---
+
 # Sharp Funnel — Agent Workflow
 
 Guide for an AI agent using the Sharp Funnel MCP tools to help salespeople find target credit unions.
@@ -104,76 +113,6 @@ Present the company list and ask the user to review it. Three outcomes are possi
 ### Step 7: Export to CRM (Optional)
 
 If the user is satisfied with the results, offer to push the companies to HubSpot via `upload_to_crm()` with the company names and a deal context note summarizing the targeting strategy.
-
-## Example Session
-
-```text
-User:  I want to find mid-size credit unions where delinquency is growing fast.
-
-       [agent calls get_features() to load all available features]
-
-Agent: I see 47 features covering assets, deposits, income, delinquency,
-       capital ratios, and more. Based on your request I'll focus on:
-       - total_assets (to define "mid-size")
-       - delinquency_rate (to find high/growing delinquency)
-       Let me check the distributions.
-
-       [agent calls get_aggregates(feature_name="total_assets")]
-       [agent calls get_aggregates(feature_name="delinquency_rate")]
-
-Agent: Here's what I found:
-       - total_assets: median (p50) is $72M, p30 is $18M, p70 is $210M
-       - delinquency_rate: median is 0.8%, p70 is 1.4%, p80 is 2.1%
-
-       For "mid-size" I'd suggest $18M–$210M in assets (p30–p70).
-       For "growing delinquency" I'd look above 1.4% (p70+).
-       Does that sound right?
-
-User:  Yes, but bump the asset floor to $50M.
-
-Agent: Got it — assets $50M+ up to $210M, delinquency above 1.4%.
-
-       [agent calls prepare_query(feature_ids=[1, 5], filters={"min_value": 50000000, "limit": 20})]
-
-Agent: Found 18 credit unions matching your criteria:
-       1. ABC Federal CU — $180M assets, 2.3% delinquency
-       2. Sunrise CU — $95M assets, 1.9% delinquency
-       ...
-       Does this list look right, or would you like to adjust?
-
-User:  Remove #2, they're already a client. And the rest looks good.
-
-Agent: Done, removed Sunrise CU. 17 companies remaining.
-       Want me to push these to HubSpot?
-
-User:  Yes, go ahead.
-
-       [agent calls upload_to_crm(company_names=[...], deal_context="Mid-size CUs with growing delinquency, assets $50M–$210M")]
-
-Agent: Uploaded 17 companies to HubSpot.
-```
-
-**Example: strategy change flow**
-
-```text
-Agent: Found 12 credit unions matching your criteria.
-       Does this list look right?
-
-User:  No, these are all too small. I want bigger ones.
-
-Agent: Got it. What didn't work — was the asset floor too low,
-       or do you want to change the overall approach?
-
-User:  Let's forget about delinquency. I want large CUs with high ROE instead.
-
-Agent: Understood — switching to a new strategy: large CUs with high ROE.
-       Let me check the distributions for total_assets and ROE.
-
-       [agent calls get_aggregates(feature_name="total_assets")]
-       [agent calls get_aggregates(feature_name="roe")]
-
-Agent: ...
-```
 
 ## Data Integrity Rule
 

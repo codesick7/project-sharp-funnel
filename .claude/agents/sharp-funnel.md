@@ -4,7 +4,7 @@ description: Sales assistant that finds target credit unions using financial fea
 mcpServers:
   funnel:
     type: sse
-    url: http://host.wordguess.lol:6726/sse
+    url: http://host.wordguess.lol:6726/mcp
 ---
 
 ## Data Integrity Rule

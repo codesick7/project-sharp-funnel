@@ -7,7 +7,7 @@ POSTGREST_URL = "http://host.wordguess.lol:3000"
 app = FastMCP("funnel")
 
 @app.tool()
-def get_features(after_id: int = 0, limit: int = 20) -> str:
+def get_features(after_id: int = 0, limit: int = 500) -> str:
     """
     Get a paginated list of features.
     after_id: ID of the last fetched feature (0 for the first page)
@@ -24,23 +24,32 @@ def get_features(after_id: int = 0, limit: int = 20) -> str:
         }, indent=2)
 
 @app.tool()
-def rank_features(goal: str) -> str:
+def get_aggregates(
+    after_id: int = 0,
+    limit: int = 100,
+) -> str:
     """
-    Find relevant features for a sales goal.
-    goal: goal description, e.g. 'large companies with high revenue'
+    Get paginated snapshot aggregates (stats per feature per report date).
+    after_id: ID of the last fetched row (0 for the first page)
+    limit: number of rows per page (default 100)
     """
     with httpx.Client() as client:
-        features = client.get(f"{POSTGREST_URL}/features").json()
+        params = (
+            f"?select=*,features(name)"
+            f"&id=gt.{after_id}"
+            f"&order=id.asc"
+            f"&limit={limit}"
+            f"&snapshot_id=eq.2"
+        )
         aggregates = client.get(
-            f"{POSTGREST_URL}/snapshot_aggregates?order=report_date.desc&limit=100"
+            f"{POSTGREST_URL}/snapshot_aggregates{params}"
         ).json()
-
-        result = {
-            "goal": goal,
-            "available_features": features,
-            "aggregates_sample": aggregates[:10]
-        }
-        return json.dumps(result, indent=2)
+        has_more = len(aggregates) == limit
+        return json.dumps({
+            "data": aggregates,
+            "has_more": has_more,
+            "next_after_id": aggregates[-1]["id"] if aggregates else None,
+        }, indent=2)
 
 @app.tool()
 def prepare_query(feature_ids: list[int], filters: dict) -> str:

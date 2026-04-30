@@ -159,6 +159,8 @@ def upload_to_crm(company_names: list[str], deal_context: str) -> str:
 
 if __name__ == "__main__":
     import uvicorn
+    from starlette.middleware.trustedhost import TrustedHostMiddleware
 
     sse_app = app.sse_app()
+    sse_app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
     uvicorn.run(sse_app, host="0.0.0.0", port=6726)

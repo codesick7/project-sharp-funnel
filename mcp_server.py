@@ -110,13 +110,20 @@ def prepare_query(filters: list[dict], limit: int = 20) -> str:
                 params += f"&value=lte.{f['max_value']}"
             rows = client.get(f"{POSTGREST_URL}/feature_values{params}").json()
             if not isinstance(rows, list):
-                return json.dumps({"error": f"Query failed for feature_id={fid}", "response": rows}, indent=2)
+                return json.dumps(
+                    {"error": f"Query failed for feature_id={fid}", "response": rows},
+                    indent=2,
+                )
 
             cids = {r["company_id"] for r in rows}
             company_sets.append(cids)
             for r in rows:
-                feature_data.setdefault(r["company_id"], {"company": r["companies"]["name"], "features": {}})
-                feature_data[r["company_id"]]["features"][r["features"]["name"]] = r["value"]
+                feature_data.setdefault(
+                    r["company_id"], {"company": r["companies"]["name"], "features": {}}
+                )
+                feature_data[r["company_id"]]["features"][r["features"]["name"]] = r[
+                    "value"
+                ]
 
         if not company_sets:
             return json.dumps({"data": [], "count": 0}, indent=2)
@@ -151,4 +158,4 @@ def upload_to_crm(company_names: list[str], deal_context: str) -> str:
 
 
 if __name__ == "__main__":
-    app.run(transport="sse", host="0.0.0.0", port=3001)
+    app.run(transport="sse", host="0.0.0.0", port=6726)

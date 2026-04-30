@@ -82,51 +82,54 @@ def get_aggregates(
 
 
 @app.tool()
-def prepare_query(feature_ids: list[int], filters: dict) -> str:
+def prepare_query(filters: list[dict], limit: int = 20) -> str:
     """
-    Prepare a final SQL query and pitch for the salesperson.
-    feature_ids: list of feature IDs
-    filters: e.g. {"min_value": 1000000, "limit": 20}
+    Find companies matching per-feature criteria. Intersects results across all filters.
+    filters: list of filter objects, each with:
+        - feature_id (int, required)
+        - min_value (float, optional)
+        - max_value (float, optional)
+      Example: [{"feature_id": 1, "min_value": 50000000, "max_value": 210000000},
+                {"feature_id": 5, "min_value": 1.4}]
+    limit: max companies to return (default 20)
     """
-    min_val = filters.get("min_value", 0)
-    limit = filters.get("limit", 200)
-    ids_str = ",".join(str(i) for i in feature_ids)
-
-    sql = f"""
-SELECT
-    c.name AS company,
-    f.name AS feature,
-    fv.value,
-    fv.report_date
-FROM feature_values fv
-JOIN companies c ON c.id = fv.company_id
-JOIN features f ON f.id = fv.feature_id
-WHERE fv.feature_id IN ({ids_str})
-  AND fv.is_current = TRUE
-  AND fv.value > {min_val}
-ORDER BY fv.value DESC
-LIMIT {limit};
-"""
-
     with httpx.Client() as client:
-        params = (
-            f"?feature_id=in.({ids_str})"
-            f"&is_current=eq.true"
-            f"&value=gt.{min_val}"
-            f"&order=value.desc"
-            f"&limit={limit}"
-            f"&select=*,companies(name),features(name)"
-        )
-        data = client.get(f"{POSTGREST_URL}/feature_values{params}").json()
+        company_sets = []
+        feature_data = {}
 
-    return json.dumps(
-        {
-            "sql": sql.strip(),
-            "results": data,
-            "count": len(data) if isinstance(data, list) else 0,
-        },
-        indent=2,
-    )
+        for f in filters:
+            fid = f["feature_id"]
+            params = (
+                f"?feature_id=eq.{fid}"
+                f"&is_current=eq.true"
+                f"&select=company_id,value,companies(name),features(name)"
+            )
+            if "min_value" in f:
+                params += f"&value=gte.{f['min_value']}"
+            if "max_value" in f:
+                params += f"&value=lte.{f['max_value']}"
+            rows = client.get(f"{POSTGREST_URL}/feature_values{params}").json()
+            if not isinstance(rows, list):
+                return json.dumps({"error": f"Query failed for feature_id={fid}", "response": rows}, indent=2)
+
+            cids = {r["company_id"] for r in rows}
+            company_sets.append(cids)
+            for r in rows:
+                feature_data.setdefault(r["company_id"], {"company": r["companies"]["name"], "features": {}})
+                feature_data[r["company_id"]]["features"][r["features"]["name"]] = r["value"]
+
+        if not company_sets:
+            return json.dumps({"data": [], "count": 0}, indent=2)
+
+        matched_ids = company_sets[0]
+        for s in company_sets[1:]:
+            matched_ids &= s
+
+        results = [feature_data[cid] for cid in matched_ids if cid in feature_data]
+        results.sort(key=lambda r: list(r["features"].values())[0], reverse=True)
+        results = results[:limit]
+
+    return json.dumps({"data": results, "count": len(results)}, indent=2)
 
 
 @app.tool()
@@ -148,4 +151,4 @@ def upload_to_crm(company_names: list[str], deal_context: str) -> str:
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(transport="sse", host="0.0.0.0", port=3001)

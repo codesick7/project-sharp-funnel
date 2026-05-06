@@ -1,4 +1,25 @@
 services:
+  caddy:
+    image: caddy:2
+    container_name: mcp-funnel-caddy
+    restart: always
+    ports:
+      - "443:443"
+      - "80:80"
+    environment:
+      - DOMAIN=${DOMAIN:?Set DOMAIN env var (e.g. mcp.example.com)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - mcp-funnel
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   mcp-funnel:
     build: .
     container_name: mcp-funnel-app
@@ -13,3 +34,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  caddy_data:
+  caddy_config:

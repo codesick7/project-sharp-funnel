@@ -6,10 +6,22 @@ services:
     init: true
     ports:
       - "6726:6726"
+    depends_on:
+      - postgrest
     environment:
       - PYTHONUNBUFFERED=1
+      - POSTGREST_URL=http://postgrest:3000
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+
+  postgrest:
+    image: postgrest/postgrest
+    container_name: mcp-funnel-postgrest
+    restart: always
+    init: true
+    environment:
+      - PGRST_DB_URI
+      - PGRST_DB_ANON_ROLE

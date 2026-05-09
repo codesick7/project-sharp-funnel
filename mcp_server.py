@@ -1,8 +1,9 @@
+import os
 import httpx
 import json
 from mcp.server.fastmcp import FastMCP
 
-POSTGREST_URL = "http://host.wordguess.lol:3000"
+POSTGREST_URL = os.environ["POSTGREST_URL"]
 
 app = FastMCP(
     "funnel",
